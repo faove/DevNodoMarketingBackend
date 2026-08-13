@@ -1,0 +1,53 @@
+networks:
+  marketing_net:
+    external: true
+
+services:
+  app:
+    build: .
+    container_name: devnodo-marketing-backend
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./storage:/var/www/html/storage
+    networks:
+      - marketing_net
+    depends_on:
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=marketing_net"
+      - "traefik.http.routers.devnodo-marketing.rule=Host(`marketing-api.devnodo.com`)"
+      - "traefik.http.routers.devnodo-marketing.entrypoints=websecure"
+      - "traefik.http.routers.devnodo-marketing.tls=true"
+      - "traefik.http.routers.devnodo-marketing.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.devnodo-marketing.service=devnodo-marketing"
+      - "traefik.http.routers.devnodo-marketing-http.rule=Host(`marketing-api.devnodo.com`)"
+      - "traefik.http.routers.devnodo-marketing-http.entrypoints=web"
+      - "traefik.http.routers.devnodo-marketing-http.middlewares=redirect-to-https"
+      - "traefik.http.services.devnodo-marketing.loadbalancer.server.port=80"
+
+  worker:
+    build: .
+    container_name: devnodo-marketing-worker
+    restart: unless-stopped
+    env_file: .env
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+    volumes:
+      - ./storage:/var/www/html/storage
+    networks:
+      - marketing_net
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: devnodo-marketing-redis
+    restart: unless-stopped
+    volumes:
+      - marketing_redis_data:/data
+    networks:
+      - marketing_net
+
+volumes:
+  marketing_redis_data:

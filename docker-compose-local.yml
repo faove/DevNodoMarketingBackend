@@ -1,0 +1,46 @@
+networks:
+  marketing_local:
+    driver: bridge
+
+services:
+  app:
+    build: .
+    container_name: devnodo-marketing-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: devnodo_marketing
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: file
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6381
+      APP_URL: http://localhost:8010
+    network_mode: host
+    command: ["/bin/sh", "/var/www/html/docker/entrypoint-local.sh"]
+    volumes:
+      - .:/var/www/html
+      - marketing_vendor:/var/www/html/vendor
+      - ./storage:/var/www/html/storage
+      - ./docker/nginx-local.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: devnodo-marketing-redis
+    restart: unless-stopped
+    ports:
+      - "6381:6379"
+    volumes:
+      - marketing_redis_data:/data
+    networks:
+      - marketing_local
+
+volumes:
+  marketing_redis_data:
+  marketing_vendor:
