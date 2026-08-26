@@ -12,8 +12,13 @@ services:
       - ./storage:/var/www/html/storage
     networks:
       - marketing_net
+    environment:
+      DB_HOST: postgres
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=marketing_net"
@@ -37,8 +42,31 @@ services:
       - ./storage:/var/www/html/storage
     networks:
       - marketing_net
+    environment:
+      DB_HOST: postgres
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: devnodo-marketing-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - marketing_postgres_data:/var/lib/postgresql/data
+    networks:
+      - marketing_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -51,3 +79,4 @@ services:
 
 volumes:
   marketing_redis_data:
+  marketing_postgres_data:

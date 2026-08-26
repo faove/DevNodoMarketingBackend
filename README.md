@@ -1,23 +1,39 @@
 # DevNodo Marketing Backend
 
-Laravel 13 API for email outreach and reply tracking (Mailcow + `devnodo_marketing`).
+Laravel 13 + Inertia/React SaaS for email outreach CRM (`devnodo_marketing`).
 
 ## Stack
 
 - Laravel Framework 13 / PHP 8.4
-- PostgreSQL `devnodo_marketing` on `127.0.0.1:5432`
+- Inertia v3 + React 19 + TypeScript + Tailwind 4
+- PostgreSQL `devnodo_marketing`
 - Redis (queues/cache in Docker)
-- Mailcow (SMTP/IMAP) — pending
+- Mailcow (SMTP/IMAP) — pending for send pipeline
 
 ## Local (Docker)
 
 ```bash
-cp .env.example .env   # if needed; set DB_PASSWORD
+cp .env.example .env   # if needed
 docker compose -f docker-compose-local.yml up -d --build
+npm install
+npm run build
+docker exec -w /var/www/html devnodo-marketing-backend php artisan migrate --force
+docker exec -w /var/www/html devnodo-marketing-backend php artisan db:seed --force
 ```
 
-App: `http://localhost:8010` (host network; avoids Apache on :80)  
-API stats: `GET http://localhost:8010/api/dashboard/stats`
+App: http://localhost:8010  
+Login: `admin@devnodo.com` / `password`  
+API stats: `GET /api/dashboard/stats`
+
+Design system notes: [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)
+
+## UI routes
+
+- `/dashboard` — marketing control center
+- `/clientes` — CRM (paginated)
+- `/campanas` — campaigns + recipients
+- `/interacciones`, `/segmentos`, `/tags`, `/productos`, `/imports`
+- `/settings/profile`, `/settings/appearance`
 
 ## Eloquent models
 
@@ -36,8 +52,4 @@ API stats: `GET http://localhost:8010/api/dashboard/stats`
 | `ImportBatch` | `import_batches` |
 | `ImportBatchRow` | `import_batch_rows` |
 
-CRM tables already exist (see `tributario/sql`). Scaffold migrations are in `database/migrations/_laravel_scaffold/`.
-
-## Without Docker
-
-Requires PHP 8.4+ with `pdo_pgsql` / `intl` / `redis` optional.
+CRM tables already exist (see `tributario/sql`). Scaffold migrations for Laravel auth/cache/jobs are in `database/migrations/`.
