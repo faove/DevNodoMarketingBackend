@@ -80,17 +80,30 @@ Verificado manualmente contra la BD real (96.536 clientes) vía tinker: resolver
 
 **Verificación:** todo se hizo vía `php artisan tinker` contra la BD real (sin fixtures), con datos de prueba creados y revertidos/eliminados al terminar cada bloque. `php artisan test` sigue en verde salvo el `ExampleTest` pre-existente (no relacionado). No hubo cambios de código en esta fase — es puramente de verificación cruzada.
 
-## Fase 6 — QA + documentación
+## Fase 6 — QA + documentación ✅ (cerrada 2026-09-07)
 
-- [ ] `npm run build`
-- [ ] `docker exec -w /var/www/html devnodo-marketing-backend php artisan test`
-- [ ] Caso: preview con cliente que solo tiene `razon_social`
-- [ ] Caso: preview con `nombre` + `apellido`
-- [ ] Caso: preview usando email de `cliente_contactos`
-- [ ] Caso: poblado de destinatarios desde segmento `email_activos`
-- [ ] Caso: UI muestra conteo correcto de omitidos vs válidos
-- [ ] Redactar `docs/EMAIL_PERSONALIZATION.md` (merge tags, reglas de resolución, flujo preview → confirmar → enviar)
-- [ ] Resumen final de pendientes: SMTP/Mailcow, opt-in masivo, tracking de opens
+- [x] `npm run build` — sin errores
+- [x] `docker exec -w /var/www/html devnodo-marketing-backend php artisan test` — verde salvo el `ExampleTest` pre-existente (no relacionado)
+- [x] Caso: preview con cliente que solo tiene `razon_social` — cliente real id 39408 ("Comercio C0158001"), `renderSnapshot()` devuelve `nombre_completo` = razón social, confirmado vía tinker
+- [x] Caso: preview con `nombre` + `apellido` — cliente real id 2, fallback nombre+apellido confirmado
+- [x] Caso: preview usando email de `cliente_contactos` — **no hay ningún cliente real hoy con `email_principal` vacío y un contacto `es_principal=true`** (0 de 96.536; el único candidato tiene `email_principal='0'`, ver hallazgo abajo). Probado por reflection con mutación en memoria (sin persistir) sobre un cliente real: al vaciar `email_principal` cae correctamente a `contacto_principal`.
+- [x] Caso: poblado de destinatarios desde segmento `email_activos` (id 1, `codigo=email_activos`) — matchea 0 clientes hoy (100% `opt_in_email=false`, comportamiento esperado ya documentado en Fase 3). Probado dentro de una transacción con rollback: al flipear `opt_in_email=true` en un cliente candidato, el segmento lo matchea (1 resultado, es el cliente correcto); rollback confirmado (`opt_in_email=true` count vuelve a 0).
+- [x] Caso: UI muestra conteo correcto de omitidos vs válidos — `campanas/preview.tsx` no mostraba conteos, solo filtraba filas; se agregó `counts` (Todos/Válidos/Omitidos/Duplicados) calculado sobre `result.data` y mostrado en las etiquetas del `ToggleGroup`. Por construcción `válidos + omitidos = todos` (partición exclusiva sobre `row.omitido`).
+- [x] Redactar `docs/EMAIL_PERSONALIZATION.md` (merge tags, reglas de resolución, flujo preview → confirmar → enviar) — creado
+- [x] Resumen final de pendientes: SMTP/Mailcow, opt-in masivo, tracking de opens — en `docs/EMAIL_PERSONALIZATION.md`, sección "Resumen final de pendientes"
+
+**Hallazgo de QA (no corregido en esta fase):** `clientes.id=1` tiene `email_principal='0'`
+(string, artefacto de import). `filled('0')` de Laravel lo trata como no-vacío, así que
+`resolveDestino()` lo toma como email válido (`destino='0'`) en vez de caer a `sin_email` o al
+contacto principal. Afecta 1 de 96.536 clientes hoy. No lo corregí porque modifica lógica de
+Fase 3 ya cerrada/verificada y requiere decidir el criterio (¿validar formato de email en
+`motivoOmision`? ¿limpiar el dato de origen?) — detalle completo en
+`docs/EMAIL_PERSONALIZATION.md`.
+
+**Verificación:** todos los casos de datos se probaron contra la BD real vía `php artisan
+tinker`, usando reflection y transacciones con rollback donde hacía falta forzar un estado que
+no existe hoy en los datos — sin persistir ni dejar residuos. Cambio de código de esta fase:
+solo `resources/js/pages/campanas/preview.tsx` (conteos en el filtro).
 
 ## Restricciones activas durante toda la ejecución
 

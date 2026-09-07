@@ -111,6 +111,17 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
         return true;
     });
 
+    const counts = (result?.data ?? []).reduce(
+        (acc, row) => {
+            acc.todos += 1;
+            if (row.omitido) acc.omitidos += 1;
+            else acc.validos += 1;
+            if (row.duplicado) acc.duplicados += 1;
+            return acc;
+        },
+        { todos: 0, validos: 0, omitidos: 0, duplicados: 0 },
+    );
+
     const handleBuild = () => {
         setBuilding(true);
         api.post<BuildResumen>(`/campanas/${campana.id}/destinatarios/build`)
@@ -167,10 +178,10 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <ToggleGroup type="single" variant="outline" size="sm" value={filtro} onValueChange={(v) => v && setFiltro(v as Filtro)}>
-                                <ToggleGroupItem value="todos">Todos</ToggleGroupItem>
-                                <ToggleGroupItem value="validos">Válidos</ToggleGroupItem>
-                                <ToggleGroupItem value="omitidos">Omitidos</ToggleGroupItem>
-                                <ToggleGroupItem value="duplicados">Duplicados</ToggleGroupItem>
+                                <ToggleGroupItem value="todos">Todos ({counts.todos})</ToggleGroupItem>
+                                <ToggleGroupItem value="validos">Válidos ({counts.validos})</ToggleGroupItem>
+                                <ToggleGroupItem value="omitidos">Omitidos ({counts.omitidos})</ToggleGroupItem>
+                                <ToggleGroupItem value="duplicados">Duplicados ({counts.duplicados})</ToggleGroupItem>
                             </ToggleGroup>
                         </div>
                     </CardHeader>
