@@ -72,11 +72,13 @@ Verificado manualmente contra la BD real (96.536 clientes) vía tinker: resolver
 
 **Verificación:** `npm run types:check` y `npm run build` sin errores. `php artisan test` en verde salvo el `ExampleTest` pre-existente (no relacionado). Extensión de Chrome no disponible en este entorno para probar la UI en navegador — se verificaron todos los endpoints nuevos/tocados (`clientes/buscar`, `campanas/{id}/preview`, `email-preview`, `destinatarios/preview`, `destinatarios/build`, `send-test`, `PUT campanas/{id}`) con curl autenticado contra la app corriendo en Docker, usando una campaña y destinatario de prueba creados y eliminados al terminar.
 
-## Fase 5 — Reglas de resolución (verificación cruzada con Fase 3)
+## Fase 5 — Reglas de resolución (verificación cruzada con Fase 3) ✅ (cerrada 2026-09-07)
 
-- [ ] Confirmar prioridad de email implementada tal cual está documentada arriba
-- [ ] Confirmar normalización lowercase + dedupe respeta el UNIQUE de BD
-- [ ] Confirmar los 4 motivos de omisión están cubiertos y visibles en la UI de preview
+- [x] Confirmar prioridad de email implementada tal cual está documentada arriba — `CampaignRecipientResolver::resolveDestino()` (línea 252): `contacto_id` explícito (solo si `tipo=email` y `filled`) → `cliente.email_principal` → `cliente_contactos` con `es_principal=true`. El fallback a `contacto_principal` está implícitamente acotado a `tipo=email` porque `baseQuery()` sólo eager-carga `contactos` con `where('tipo','email')` — confirmado leyendo el query, no solo el método.
+- [x] Confirmar normalización lowercase + dedupe respeta el UNIQUE de BD — constraint real en Postgres: `UNIQUE (campana_id, cliente_id, canal, destino)` (btree simple, sin collation case-insensitive), y `upsert()` usa exactamente esas 4 columnas como conflict target. Verificado empíricamente vía tinker sobre un cliente real (id 2, con rollback manual al terminar): build inicial con `email_principal` en minúsculas → 1 fila; se mutó temporalmente su contacto principal a MAYÚSCULAS y se corrió `preview()` con ese `contacto_id` → `destino` normalizado sigue en minúsculas y `duplicado=true`; un segundo `build()` con ese contacto en mayúsculas no violó el UNIQUE ni creó una segunda fila (sigue habiendo 1). Contacto y campaña de prueba revertidos/eliminados al terminar.
+- [x] Confirmar los 4 motivos de omisión están cubiertos y visibles en la UI de preview — los 4 branches de `motivoOmision()` (`sin_email`, `opt_out`, `no_contactar`, `sin_opt_in`) se ejercitaron por reflection sin persistir cambios, confirmando que cada condición devuelve la clave esperada. En datos reales hoy sólo `sin_email` (41.608 clientes) y `sin_opt_in` (96.536, 100%) ocurren de forma natural — `opt_out_at` y `estado=no_contactar` no tienen casos actualmente (0 clientes), pero la lógica está probada y lista para cuando existan. La UI (`campanas/preview.tsx`) mapea las 4 claves a etiquetas en español (`MOTIVOS` — Sin email / Opt-out / No contactar / Sin opt-in) y las muestra debajo del badge "Omitido" en cada fila.
+
+**Verificación:** todo se hizo vía `php artisan tinker` contra la BD real (sin fixtures), con datos de prueba creados y revertidos/eliminados al terminar cada bloque. `php artisan test` sigue en verde salvo el `ExampleTest` pre-existente (no relacionado). No hubo cambios de código en esta fase — es puramente de verificación cruzada.
 
 ## Fase 6 — QA + documentación
 
