@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CampanaController;
+use App\Http\Controllers\CampanaEmailController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardPageController;
 use App\Http\Controllers\ImportBatchController;
@@ -26,6 +27,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/campanas', [CampanaController::class, 'store'])->name('campanas.store');
     Route::get('/campanas/{campana}', [CampanaController::class, 'show'])->name('campanas.show');
     Route::put('/campanas/{campana}', [CampanaController::class, 'update'])->name('campanas.update');
+
+    Route::post('/campanas/{campana}/destinatarios/preview', [CampanaEmailController::class, 'previewDestinatarios'])->name('campanas.destinatarios.preview');
+    Route::get('/campanas/{campana}/email-preview', [CampanaEmailController::class, 'emailPreview'])->name('campanas.email-preview');
+    Route::post('/campanas/{campana}/destinatarios/build', [CampanaEmailController::class, 'buildDestinatarios'])->name('campanas.destinatarios.build');
+    Route::post('/campanas/{campana}/send-test', [CampanaEmailController::class, 'sendTest'])->name('campanas.send-test');
 
     Route::get('/interacciones', [InteraccionController::class, 'index'])->name('interacciones.index');
 
