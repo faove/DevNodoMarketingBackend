@@ -48,25 +48,29 @@ Verificado manualmente contra la BD real (96.536 clientes) vía tinker: resolver
 
 **Nota de datos:** el segmento `email_activos` matchea 0 clientes hoy porque `opt_in_email=false` en el 100% de la base (ver resumen Fases 1-2). Es el comportamiento esperado, no un bug.
 
-## Fase 4 — Vistas React
+## Fase 4 — Vistas React ✅ (cerrada 2026-09-07)
 
-- [ ] `/campanas/{id}` — sección "Email" (reemplaza el alert actual en `campanas/show.tsx`)
-  - [ ] Editor asunto + `plantilla_html`
-  - [ ] Panel de merge tags clicables (insertar en cursor)
-  - [ ] Selector de cliente de prueba (Dialog + búsqueda server-side)
-  - [ ] Selector opcional de `cliente_contactos` tipo email
-  - [ ] Preview en vivo (iframe) con toggle Desktop/Mobile
-  - [ ] Cabecera simulada From/To/Subject
-- [ ] `/campanas/{id}/preview` (página o modal fullscreen)
-  - [ ] Tabla: Cliente | Email destino | Origen | Asunto renderizado | Preview | Opt-in | Estado
-  - [ ] Filtros: omitidos / válidos / duplicados
-  - [ ] Acción "Confirmar audiencia"
-  - [ ] Acción "Enviar prueba a mi email"
-  - [ ] CTA "Enviar campaña" (disabled + explicación mientras no haya SMTP)
-- [ ] `/clientes/{id}` — botón "Vista previa email"
-  - [ ] Visible solo si hay campaña en borrador disponible
-  - [ ] Modal con render para ese cliente/contacto
-- [ ] Estados UI: loading, empty, error, success (sonner) en las tres pantallas
+- [x] `/campanas/{id}` — sección "Email" (reemplaza el alert actual en `campanas/show.tsx`)
+  - [x] Editor asunto + `plantilla_html` — `CampaignEmailEditor`, visible solo si `canal === 'email'`, guarda vía `router.put` reenviando el resto de los campos de la campaña como hidden fields
+  - [x] Panel de merge tags clicables (insertar en cursor) — `MergeTagPanel` + `lib/insert-at-cursor.ts`, inserta en el campo con foco (`asunto` o `plantilla_html`)
+  - [x] Selector de cliente de prueba (Dialog + búsqueda server-side) — `ClienteTestSelector`, contra `GET /clientes/buscar?q=` (nuevo endpoint JSON, limit 20)
+  - [x] Selector opcional de `cliente_contactos` tipo email — Select condicional cuando el cliente elegido tiene contactos tipo email
+  - [x] Preview en vivo (iframe) con toggle Desktop/Mobile — `EmailLivePreview`; el render es 100% cliente (`lib/merge-tags.ts::renderTemplate`, espejo de `EmailTemplateRenderer::render`), sin roundtrip al guardar
+  - [x] Cabecera simulada From/To/Subject
+- [x] `/campanas/{id}/preview` (página completa, no modal) — nueva ruta `GET /campanas/{campana}/preview`
+  - [x] Tabla: Cliente | Email destino | Origen | Asunto renderizado | Preview (ícono ojo → dialog con iframe) | Opt-in | Estado
+  - [x] Filtros: omitidos / válidos / duplicados — **se aplican client-side sobre la página cargada** (50 filas), no hay agregación server-side por estado; se avisa en la UI
+  - [x] Acción "Confirmar audiencia" (`POST destinatarios/build`, sin filtros → aplica a los 96k clientes, matcheable a futuro con `segmento_id`/`filtros` si se agrega selector)
+  - [x] Acción "Enviar prueba a mi email" — reutiliza `ClienteTestSelector` para elegir de qué cliente tomar los datos de personalización; el email destino se precarga desde `auth.user.email`
+  - [x] CTA "Enviar campaña" (disabled + explicación)
+- [x] `/clientes/{id}` — botón "Vista previa email" (`ClienteEmailPreviewDialog`)
+  - [x] Visible solo si `campanasEmailBorrador` (prop nueva en `ClienteController::show`, campañas `estado=borrador` + `canal=email`) no está vacío
+  - [x] Modal con render server-side para ese cliente/contacto vía `GET email-preview`
+- [x] Estados UI: loading, empty, error (toast vía sonner) en las tres pantallas
+
+**Nota de alcance:** no se agregó selector de segmento/filtros en `/campanas/{id}/preview` (no estaba en el checklist original). Sin él, "Confirmar audiencia" opera sobre la base completa de clientes — verificado con `cliente_id` puntual en vez de sobre los 96k reales para no persistir de más durante el smoke test. Si se necesita acotar audiencia por campaña, es una Fase 4.1 a definir (probablemente agregar `segmento_id` a `campanas` o un selector ad-hoc no persistido).
+
+**Verificación:** `npm run types:check` y `npm run build` sin errores. `php artisan test` en verde salvo el `ExampleTest` pre-existente (no relacionado). Extensión de Chrome no disponible en este entorno para probar la UI en navegador — se verificaron todos los endpoints nuevos/tocados (`clientes/buscar`, `campanas/{id}/preview`, `email-preview`, `destinatarios/preview`, `destinatarios/build`, `send-test`, `PUT campanas/{id}`) con curl autenticado contra la app corriendo en Docker, usando una campaña y destinatario de prueba creados y eliminados al terminar.
 
 ## Fase 5 — Reglas de resolución (verificación cruzada con Fase 3)
 

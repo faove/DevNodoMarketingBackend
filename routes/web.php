@@ -18,6 +18,7 @@ Route::redirect('/', '/dashboard');
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', DashboardPageController::class)->name('dashboard');
 
+    Route::get('/clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
     Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
@@ -25,6 +26,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/campanas', [CampanaController::class, 'index'])->name('campanas.index');
     Route::post('/campanas', [CampanaController::class, 'store'])->name('campanas.store');
+    Route::get('/campanas/{campana}/preview', [CampanaController::class, 'preview'])->name('campanas.preview');
     Route::get('/campanas/{campana}', [CampanaController::class, 'show'])->name('campanas.show');
     Route::put('/campanas/{campana}', [CampanaController::class, 'update'])->name('campanas.update');
 

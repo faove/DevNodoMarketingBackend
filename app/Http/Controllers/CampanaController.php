@@ -69,6 +69,17 @@ class CampanaController extends Controller
             'campana' => $campana,
             'destinatarios' => $destinatarios,
             'estadoCounts' => $estadoCounts,
+            'empresa' => [
+                'nombre' => config('empresa.nombre'),
+                'email' => config('empresa.email'),
+            ],
+        ]);
+    }
+
+    public function preview(Campana $campana): Response
+    {
+        return Inertia::render('campanas/preview', [
+            'campana' => $campana->only(['id', 'codigo', 'nombre', 'asunto', 'estado']),
         ]);
     }
 

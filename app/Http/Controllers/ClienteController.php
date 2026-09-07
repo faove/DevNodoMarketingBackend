@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Campana;
 use App\Models\Cliente;
+use App\Models\ClienteContacto;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -11,6 +14,47 @@ use Inertia\Response;
 
 class ClienteController extends Controller
 {
+    public function buscar(Request $request): JsonResponse
+    {
+        $search = $request->string('q')->trim()->toString();
+
+        $query = Cliente::query()->with(['contactos' => fn ($q) => $q->where('tipo', 'email')]);
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('razon_social', 'ilike', "%{$search}%")
+                    ->orWhere('nombre', 'ilike', "%{$search}%")
+                    ->orWhere('apellido', 'ilike', "%{$search}%")
+                    ->orWhere('email_principal', 'ilike', "%{$search}%");
+            });
+        }
+
+        $clientes = $query
+            ->orderBy('direccion')
+            ->orderBy('id')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'data' => $clientes->map(fn (Cliente $cliente) => [
+                'id' => $cliente->id,
+                'nombre_completo' => trim(($cliente->nombre ?? '').' '.($cliente->apellido ?? '')) ?: $cliente->razon_social ?: "Cliente #{$cliente->id}",
+                'nombre' => $cliente->nombre,
+                'apellido' => $cliente->apellido,
+                'razon_social' => $cliente->razon_social,
+                'ciudad' => $cliente->ciudad,
+                'provincia' => $cliente->provincia,
+                'email_principal' => $cliente->email_principal,
+                'opt_in_email' => $cliente->opt_in_email,
+                'contactos_email' => $cliente->contactos->map(fn (ClienteContacto $c) => [
+                    'id' => $c->id,
+                    'valor' => $c->valor,
+                    'etiqueta' => $c->etiqueta,
+                ])->values(),
+            ]),
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $query = Cliente::query();
@@ -83,8 +127,16 @@ class ClienteController extends Controller
             'consentimientos' => fn ($q) => $q->orderByDesc('registrado_at')->limit(10),
         ]);
 
+        $campanasEmailBorrador = Campana::query()
+            ->where('estado', 'borrador')
+            ->where('canal', 'email')
+            ->orderByDesc('updated_at')
+            ->limit(50)
+            ->get(['id', 'codigo', 'nombre']);
+
         return Inertia::render('clientes/show', [
             'cliente' => $cliente,
+            'campanasEmailBorrador' => $campanasEmailBorrador,
         ]);
     }
 

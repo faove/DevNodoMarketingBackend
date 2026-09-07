@@ -8,6 +8,7 @@ storage/logs/*
 storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
+storage/inertia-devtools
 bootstrap/cache/*.php
 .phpunit.cache
 tests

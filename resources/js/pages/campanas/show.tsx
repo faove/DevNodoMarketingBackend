@@ -1,11 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { FormEvent } from 'react';
-import { Mail, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import Heading from '@/components/heading';
 import { EmptyState } from '@/components/empty-state';
 import { Pagination } from '@/components/pagination';
 import { StatusBadge } from '@/components/status-badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CampaignEmailEditor } from '@/components/campanas/campaign-email-editor';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -60,6 +60,7 @@ type Campaign = {
     producto_id: number | null;
     estado: string;
     asunto: string | null;
+    plantilla_html: string | null;
     mensaje_preview: string | null;
     destinatarios_count: number;
     programada_at: string | null;
@@ -85,10 +86,12 @@ export default function CampaignShow({
     campana,
     destinatarios,
     estadoCounts,
+    empresa,
 }: {
     campana: Campaign;
     destinatarios: Paginated<Recipient>;
     estadoCounts: Record<string, number>;
+    empresa: { nombre: string; email: string };
 }) {
     const updateCampaign = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -104,13 +107,7 @@ export default function CampaignShow({
                     <StatusBadge status={campana.estado} />
                 </div>
 
-                <Alert variant="info">
-                    <Mail />
-                    <AlertTitle>Envío de emails próximamente</AlertTitle>
-                    <AlertDescription>
-                        La gestión y segmentación ya están disponibles. El envío masivo se habilitará en una próxima versión.
-                    </AlertDescription>
-                </Alert>
+                {campana.canal === 'email' ? <CampaignEmailEditor campana={campana} empresa={empresa} /> : null}
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <Card><CardHeader className="pb-2"><CardDescription>Destinatarios</CardDescription></CardHeader><CardContent className="text-3xl font-extrabold">{campana.destinatarios_count.toLocaleString('es-AR')}</CardContent></Card>
@@ -150,7 +147,6 @@ export default function CampaignShow({
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="grid gap-2"><Label htmlFor="asunto">Asunto</Label><Input id="asunto" name="asunto" defaultValue={campana.asunto ?? ''} /></div>
                                 <div className="grid gap-2"><Label htmlFor="objetivo">Objetivo</Label><Input id="objetivo" name="objetivo" defaultValue={campana.objetivo ?? ''} /></div>
                                 <div className="grid gap-2 md:col-span-2">
                                     <Label htmlFor="mensaje_preview">Vista previa del mensaje</Label>

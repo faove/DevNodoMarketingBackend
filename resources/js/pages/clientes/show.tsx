@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { StatusBadge } from '@/components/status-badge';
+import { ClienteEmailPreviewDialog } from '@/components/campanas/cliente-email-preview-dialog';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -69,7 +70,15 @@ type Cliente = {
     }[];
 };
 
-export default function ClienteShow({ cliente }: { cliente: Cliente }) {
+type CampanaEmailBorrador = { id: number; codigo: string; nombre: string };
+
+export default function ClienteShow({
+    cliente,
+    campanasEmailBorrador,
+}: {
+    cliente: Cliente;
+    campanasEmailBorrador: CampanaEmailBorrador[];
+}) {
     const title =
         cliente.razon_social ||
         [cliente.nombre, cliente.apellido].filter(Boolean).join(' ') ||
@@ -92,9 +101,19 @@ export default function ClienteShow({ cliente }: { cliente: Cliente }) {
                             ))}
                         </div>
                     </div>
-                    <Button variant="outline" asChild>
-                        <Link href="/clientes">Volver</Link>
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        {campanasEmailBorrador.length > 0 ? (
+                            <ClienteEmailPreviewDialog
+                                clienteId={cliente.id}
+                                campanas={campanasEmailBorrador}
+                                contactosEmail={cliente.contactos.filter((c) => c.tipo === 'email')}
+                                emailPrincipal={cliente.email_principal}
+                            />
+                        ) : null}
+                        <Button variant="outline" asChild>
+                            <Link href="/clientes">Volver</Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-3">
