@@ -1,5 +1,7 @@
 networks:
-  marketing_net:
+  mailcowdockerized_mailcow-network:
+    external: true
+  devnodo_net:
     external: true
 
 services:
@@ -11,7 +13,8 @@ services:
     volumes:
       - ./storage:/var/www/html/storage
     networks:
-      - marketing_net
+      - mailcowdockerized_mailcow-network
+      - devnodo_net
     environment:
       DB_HOST: postgres
     depends_on:
@@ -21,7 +24,7 @@ services:
         condition: service_started
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=marketing_net"
+      - "traefik.docker.network=devnodo_net"
       - "traefik.http.routers.devnodo-marketing.rule=Host(`marketing.devnodo.com`)"
       - "traefik.http.routers.devnodo-marketing.entrypoints=websecure"
       - "traefik.http.routers.devnodo-marketing.tls=true"
@@ -41,7 +44,8 @@ services:
     volumes:
       - ./storage:/var/www/html/storage
     networks:
-      - marketing_net
+      - mailcowdockerized_mailcow-network
+      - devnodo_net
     environment:
       DB_HOST: postgres
     depends_on:
@@ -61,7 +65,8 @@ services:
     volumes:
       - marketing_postgres_data:/var/lib/postgresql/data
     networks:
-      - marketing_net
+      - mailcowdockerized_mailcow-network
+      - devnodo_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -75,7 +80,8 @@ services:
     volumes:
       - marketing_redis_data:/data
     networks:
-      - marketing_net
+      - mailcowdockerized_mailcow-network
+      - devnodo_net
 
 volumes:
   marketing_redis_data:
