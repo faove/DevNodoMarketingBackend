@@ -11,6 +11,12 @@ export const MERGE_TAGS: MergeTag[] = [
     { tag: '{{cliente.email}}', label: 'Email' },
     { tag: '{{cliente.ciudad}}', label: 'Ciudad' },
     { tag: '{{cliente.provincia}}', label: 'Provincia' },
+    { tag: '{{cliente.sector}}', label: 'Sector' },
+    { tag: '{{cliente.rubro}}', label: 'Rubro' },
+    { tag: '{{contacto.valor}}', label: 'Email del contacto' },
+    { tag: '{{contacto.etiqueta}}', label: 'Etiqueta del contacto' },
+    { tag: '{{campana.nombre}}', label: 'Nombre de campaña' },
+    { tag: '{{producto.nombre}}', label: 'Producto' },
     { tag: '{{empresa.nombre}}', label: 'Nombre de empresa' },
     { tag: '{{empresa.email}}', label: 'Email de empresa' },
 ];

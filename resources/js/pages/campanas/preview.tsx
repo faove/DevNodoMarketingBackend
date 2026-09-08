@@ -10,12 +10,22 @@ import { ClienteTestSelector, type ClienteBusqueda } from '@/components/campanas
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
@@ -34,6 +44,14 @@ type Campaign = {
     nombre: string;
     asunto: string | null;
     estado: string;
+    canal: string;
+};
+
+type Segmento = {
+    id: number;
+    codigo: string;
+    nombre: string;
+    descripcion: string | null;
 };
 
 type PreviewRow = {
@@ -57,6 +75,13 @@ type PaginatedJson<T> = {
 
 type BuildResumen = { total: number; persistidos: number; omitidos: number };
 
+type AudienceFilters = {
+    segmento_id: string;
+    con_email: boolean;
+    opt_in_email: boolean;
+    provincia: string;
+};
+
 const MOTIVOS: Record<string, string> = {
     sin_email: 'Sin email',
     opt_out: 'Opt-out',
@@ -66,7 +91,27 @@ const MOTIVOS: Record<string, string> = {
 
 type Filtro = 'todos' | 'omitidos' | 'validos' | 'duplicados';
 
-export default function CampaignPreview({ campana }: { campana: Campaign }) {
+function buildAudienceBody(filters: AudienceFilters): Record<string, unknown> {
+    if (filters.segmento_id && filters.segmento_id !== 'all') {
+        return { segmento_id: Number(filters.segmento_id) };
+    }
+
+    return {
+        filtros: {
+            con_email: filters.con_email || undefined,
+            opt_in_email: filters.opt_in_email || undefined,
+            provincia: filters.provincia.trim() || undefined,
+        },
+    };
+}
+
+export default function CampaignPreview({
+    campana,
+    segmentos,
+}: {
+    campana: Campaign;
+    segmentos: Segmento[];
+}) {
     const { auth } = usePage<{ auth: Auth }>().props;
 
     const [page, setPage] = useState(1);
@@ -74,6 +119,14 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
     const [result, setResult] = useState<PaginatedJson<PreviewRow> | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [audienceFilters, setAudienceFilters] = useState<AudienceFilters>({
+        segmento_id: 'all',
+        con_email: true,
+        opt_in_email: false,
+        provincia: '',
+    });
+    const [appliedFilters, setAppliedFilters] = useState<AudienceFilters>(audienceFilters);
 
     const [building, setBuilding] = useState(false);
     const [buildResumen, setBuildResumen] = useState<BuildResumen | null>(null);
@@ -85,11 +138,14 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
     const [testEmail, setTestEmail] = useState(auth.user?.email ?? '');
 
     const fetchPage = useCallback(
-        (targetPage: number) => {
+        (targetPage: number, filters: AudienceFilters) => {
             setLoading(true);
             setError(null);
 
-            api.post<PaginatedJson<PreviewRow>>(`/campanas/${campana.id}/destinatarios/preview?page=${targetPage}&per_page=50`)
+            api.post<PaginatedJson<PreviewRow>>(
+                `/campanas/${campana.id}/destinatarios/preview?page=${targetPage}&per_page=50`,
+                buildAudienceBody(filters),
+            )
                 .then((response) => {
                     setResult(response);
                     setPage(response.current_page);
@@ -101,8 +157,12 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
     );
 
     useEffect(() => {
-        fetchPage(1);
-    }, [fetchPage]);
+        fetchPage(1, appliedFilters);
+    }, [fetchPage, appliedFilters]);
+
+    const applyFilters = () => {
+        setAppliedFilters({ ...audienceFilters });
+    };
 
     const rows = (result?.data ?? []).filter((row) => {
         if (filtro === 'omitidos') return row.omitido;
@@ -124,11 +184,11 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
 
     const handleBuild = () => {
         setBuilding(true);
-        api.post<BuildResumen>(`/campanas/${campana.id}/destinatarios/build`)
+        api.post<BuildResumen>(`/campanas/${campana.id}/destinatarios/build`, buildAudienceBody(appliedFilters))
             .then((resumen) => {
                 setBuildResumen(resumen);
                 toast.success(`Audiencia confirmada: ${resumen.persistidos} destinatarios persistidos.`);
-                fetchPage(page);
+                fetchPage(page, appliedFilters);
             })
             .catch(() => toast.error('No se pudo confirmar la audiencia.'))
             .finally(() => setBuilding(false));
@@ -157,6 +217,8 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
             .finally(() => setSendingTest(false));
     };
 
+    const usingSegment = appliedFilters.segmento_id !== 'all';
+
     return (
         <>
             <Head title={`Audiencia — ${campana.nombre}`} />
@@ -167,6 +229,86 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
                         <Link href={`/campanas/${campana.id}`}>Volver a la campaña</Link>
                     </Button>
                 </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Audiencia</CardTitle>
+                        <CardDescription>
+                            Elegí un segmento o filtros antes de confirmar. Por defecto se limitan clientes con email.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 md:grid-cols-4">
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label>Segmento</Label>
+                            <Select
+                                value={audienceFilters.segmento_id}
+                                onValueChange={(value) =>
+                                    setAudienceFilters((prev) => ({ ...prev, segmento_id: value }))
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Todos los clientes" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Sin segmento (usar filtros)</SelectItem>
+                                    {segmentos.map((segmento) => (
+                                        <SelectItem key={segmento.id} value={String(segmento.id)}>
+                                            {segmento.nombre}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="provincia">Provincia</Label>
+                            <Input
+                                id="provincia"
+                                value={audienceFilters.provincia}
+                                disabled={audienceFilters.segmento_id !== 'all'}
+                                onChange={(e) =>
+                                    setAudienceFilters((prev) => ({ ...prev, provincia: e.target.value }))
+                                }
+                                placeholder="Córdoba"
+                            />
+                        </div>
+                        <div className="flex flex-col justify-end gap-3">
+                            <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                    checked={audienceFilters.con_email}
+                                    disabled={audienceFilters.segmento_id !== 'all'}
+                                    onCheckedChange={(checked) =>
+                                        setAudienceFilters((prev) => ({
+                                            ...prev,
+                                            con_email: Boolean(checked),
+                                        }))
+                                    }
+                                />
+                                Con email
+                            </label>
+                            <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                    checked={audienceFilters.opt_in_email}
+                                    disabled={audienceFilters.segmento_id !== 'all'}
+                                    onCheckedChange={(checked) =>
+                                        setAudienceFilters((prev) => ({
+                                            ...prev,
+                                            opt_in_email: Boolean(checked),
+                                        }))
+                                    }
+                                />
+                                Solo opt-in
+                            </label>
+                        </div>
+                        <div className="md:col-span-4">
+                            <Button onClick={applyFilters}>Aplicar audiencia</Button>
+                            {usingSegment ? (
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    Usando segmento. Los filtros sueltos quedan ignorados.
+                                </p>
+                            ) : null}
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <Card>
                     <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -197,7 +339,7 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
                         ) : (
                             <>
                                 <p className="mb-2 text-xs text-muted-foreground">
-                                    El filtro se aplica sobre la página actual ({result?.data.length ?? 0} filas cargadas).
+                                    El filtro Todos/Válidos/Omitidos se aplica sobre la página actual ({result?.data.length ?? 0} filas cargadas).
                                 </p>
                                 <div className="overflow-hidden rounded-xl border">
                                     <Table>
@@ -261,7 +403,7 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
                                             variant="outline"
                                             size="sm"
                                             disabled={!result || result.current_page <= 1}
-                                            onClick={() => fetchPage(page - 1)}
+                                            onClick={() => fetchPage(page - 1, appliedFilters)}
                                         >
                                             <ChevronLeft />
                                             Anterior
@@ -270,7 +412,7 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
                                             variant="outline"
                                             size="sm"
                                             disabled={!result || result.current_page >= result.last_page}
-                                            onClick={() => fetchPage(page + 1)}
+                                            onClick={() => fetchPage(page + 1, appliedFilters)}
                                         >
                                             Siguiente
                                             <ChevronRight />
@@ -293,10 +435,19 @@ export default function CampaignPreview({ campana }: { campana: Campaign }) {
                                 <Users />
                                 {building ? 'Confirmando...' : 'Confirmar audiencia'}
                             </Button>
-                            <Button variant="outline" onClick={() => setTestSelectorOpen(true)} disabled={sendingTest}>
-                                <Send />
-                                Enviar prueba a mi email
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    className="w-56"
+                                    type="email"
+                                    value={testEmail}
+                                    onChange={(e) => setTestEmail(e.target.value)}
+                                    placeholder="tu@email.com"
+                                />
+                                <Button variant="outline" onClick={() => setTestSelectorOpen(true)} disabled={sendingTest}>
+                                    <Send />
+                                    Enviar prueba
+                                </Button>
+                            </div>
                         </div>
 
                         {buildResumen ? (

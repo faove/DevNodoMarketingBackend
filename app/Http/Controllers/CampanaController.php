@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Campana;
 use App\Models\Producto;
+use App\Models\Segmento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -79,7 +80,11 @@ class CampanaController extends Controller
     public function preview(Campana $campana): Response
     {
         return Inertia::render('campanas/preview', [
-            'campana' => $campana->only(['id', 'codigo', 'nombre', 'asunto', 'estado']),
+            'campana' => $campana->only(['id', 'codigo', 'nombre', 'asunto', 'estado', 'canal']),
+            'segmentos' => Segmento::query()
+                ->activo()
+                ->orderBy('nombre')
+                ->get(['id', 'codigo', 'nombre', 'descripcion']),
         ]);
     }
 

@@ -229,6 +229,10 @@ class CampaignRecipientResolver
             return 'sin_email';
         }
 
+        if (! $this->esEmailValido($destino)) {
+            return 'sin_email';
+        }
+
         if ($cliente->opt_out_at !== null) {
             return 'opt_out';
         }
@@ -254,19 +258,28 @@ class CampaignRecipientResolver
         if ($contactoId !== null) {
             $contacto = $cliente->contactos->firstWhere('id', $contactoId);
 
-            if ($contacto && $contacto->tipo === 'email' && filled($contacto->valor)) {
+            if ($contacto && $contacto->tipo === 'email' && $this->esEmailValido($contacto->valor)) {
                 return [$this->normalizar($contacto->valor), 'contacto_elegido', $contacto];
             }
         }
 
-        if (filled($cliente->email_principal)) {
-            return [$this->normalizar($cliente->email_principal), 'email_principal', null];
+        if ($this->esEmailValido($cliente->email_principal)) {
+            return [$this->normalizar((string) $cliente->email_principal), 'email_principal', null];
         }
 
         $principal = $cliente->contactos->firstWhere('es_principal', true);
 
-        if ($principal && filled($principal->valor)) {
+        if ($principal && $this->esEmailValido($principal->valor)) {
             return [$this->normalizar($principal->valor), 'contacto_principal', $principal];
+        }
+
+        // Fallback: any valid email contact (not only es_principal).
+        $cualquierEmail = $cliente->contactos->first(
+            fn (ClienteContacto $c) => $this->esEmailValido($c->valor)
+        );
+
+        if ($cualquierEmail) {
+            return [$this->normalizar($cualquierEmail->valor), 'contacto_email', $cualquierEmail];
         }
 
         return [null, null, null];
@@ -275,6 +288,24 @@ class CampaignRecipientResolver
     private function normalizar(string $email): string
     {
         return strtolower(trim($email));
+    }
+
+    /**
+     * Rejects empty values, import artifacts like "0", and non-email strings.
+     */
+    private function esEmailValido(?string $email): bool
+    {
+        if ($email === null) {
+            return false;
+        }
+
+        $normalized = $this->normalizar($email);
+
+        if ($normalized === '' || $normalized === '0') {
+            return false;
+        }
+
+        return filter_var($normalized, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     /**

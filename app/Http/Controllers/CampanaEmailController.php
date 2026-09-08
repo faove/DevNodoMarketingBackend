@@ -64,7 +64,10 @@ class CampanaEmailController extends Controller
             : null;
 
         $snapshot = $renderer->renderSnapshot($campana, $cliente, $contacto);
-        $to = $contacto->valor ?? $cliente->email_principal;
+        $to = $contacto?->valor ?? $cliente->email_principal;
+        if ($to !== null && filter_var(strtolower(trim((string) $to)), FILTER_VALIDATE_EMAIL) === false) {
+            $to = null;
+        }
 
         return response()->json([
             'to' => $to,
@@ -118,17 +121,22 @@ class CampanaEmailController extends Controller
      */
     private function resolveParams(Request $request): array
     {
+        $filtrosInput = $request->input('filtros', []);
+        if (! is_array($filtrosInput)) {
+            $filtrosInput = [];
+        }
+
         return [
             'cliente_id' => $request->integer('cliente_id') ?: null,
             'segmento_id' => $request->integer('segmento_id') ?: null,
             'contacto_id' => $request->integer('contacto_id') ?: null,
             'ignore_opt_in' => $request->boolean('ignore_opt_in'),
             'filtros' => [
-                'con_email' => $request->boolean('con_email'),
-                'opt_in_email' => $request->boolean('opt_in_email'),
-                'provincia' => $request->string('provincia')->toString() ?: null,
-                'estado' => $request->string('estado')->toString() ?: null,
-                'origen_tabla' => $request->string('origen_tabla')->toString() ?: null,
+                'con_email' => (bool) ($filtrosInput['con_email'] ?? $request->boolean('con_email')),
+                'opt_in_email' => (bool) ($filtrosInput['opt_in_email'] ?? $request->boolean('opt_in_email')),
+                'provincia' => ($filtrosInput['provincia'] ?? $request->string('provincia')->toString()) ?: null,
+                'estado' => ($filtrosInput['estado'] ?? $request->string('estado')->toString()) ?: null,
+                'origen_tabla' => ($filtrosInput['origen_tabla'] ?? $request->string('origen_tabla')->toString()) ?: null,
             ],
         ];
     }

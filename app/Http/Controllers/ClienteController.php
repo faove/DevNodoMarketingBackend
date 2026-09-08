@@ -44,6 +44,8 @@ class ClienteController extends Controller
                 'razon_social' => $cliente->razon_social,
                 'ciudad' => $cliente->ciudad,
                 'provincia' => $cliente->provincia,
+                'sector' => $cliente->sector,
+                'rubro' => $cliente->rubro,
                 'email_principal' => $cliente->email_principal,
                 'opt_in_email' => $cliente->opt_in_email,
                 'contactos_email' => $cliente->contactos->map(fn (ClienteContacto $c) => [

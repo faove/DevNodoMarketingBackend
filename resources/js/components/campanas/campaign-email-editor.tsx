@@ -20,6 +20,7 @@ type Campaign = {
     canal: string;
     objetivo: string | null;
     producto_id: number | null;
+    producto?: { id: number; nombre: string; codigo: string } | null;
     estado: string;
     asunto: string | null;
     plantilla_html: string | null;
@@ -34,6 +35,8 @@ const CLIENTE_EJEMPLO = {
     razon_social: 'Empresa Ejemplo S.A.',
     ciudad: 'Córdoba',
     provincia: 'Córdoba',
+    sector: 'comercio',
+    rubro: 'retail',
     email_principal: 'cliente@ejemplo.com',
 };
 
@@ -68,15 +71,23 @@ export function CampaignEmailEditor({ campana, empresa }: { campana: Campaign; e
                   razon_social: testCliente.razon_social ?? '',
                   ciudad: testCliente.ciudad ?? '',
                   provincia: testCliente.provincia ?? '',
+                  sector: testCliente.sector ?? '',
+                  rubro: testCliente.rubro ?? '',
                   email: contactoSeleccionado?.valor ?? testCliente.email_principal ?? '',
               }
             : { ...CLIENTE_EJEMPLO, email: CLIENTE_EJEMPLO.email_principal };
 
         return {
             cliente,
+            contacto: {
+                valor: contactoSeleccionado?.valor ?? '',
+                etiqueta: contactoSeleccionado?.etiqueta ?? '',
+            },
+            campana: { nombre: campana.nombre ?? '' },
+            producto: { nombre: campana.producto?.nombre ?? '' },
             empresa: { nombre: empresa.nombre ?? '', email: empresa.email ?? '' },
         };
-    }, [testCliente, contactoSeleccionado, empresa]);
+    }, [testCliente, contactoSeleccionado, empresa, campana.nombre, campana.producto?.nombre]);
 
     const renderedAsunto = renderTemplate(asunto, valores);
     const renderedHtml = renderTemplate(plantillaHtml, valores);

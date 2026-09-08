@@ -29,6 +29,8 @@ export type ClienteBusqueda = {
     razon_social: string | null;
     ciudad: string | null;
     provincia: string | null;
+    sector: string | null;
+    rubro: string | null;
     email_principal: string | null;
     opt_in_email: boolean;
     contactos_email: { id: number; valor: string; etiqueta: string | null }[];

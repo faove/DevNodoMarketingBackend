@@ -68,7 +68,9 @@ Verificado manualmente contra la BD real (96.536 clientes) vía tinker: resolver
   - [x] Modal con render server-side para ese cliente/contacto vía `GET email-preview`
 - [x] Estados UI: loading, empty, error (toast vía sonner) en las tres pantallas
 
-**Nota de alcance:** no se agregó selector de segmento/filtros en `/campanas/{id}/preview` (no estaba en el checklist original). Sin él, "Confirmar audiencia" opera sobre la base completa de clientes — verificado con `cliente_id` puntual en vez de sobre los 96k reales para no persistir de más durante el smoke test. Si se necesita acotar audiencia por campaña, es una Fase 4.1 a definir (probablemente agregar `segmento_id` a `campanas` o un selector ad-hoc no persistido).
+**Nota de alcance (actualizada):** se agregó selector de segmento/filtros en
+`/campanas/{id}/preview` (Fase 4.1). "Confirmar audiencia" ahora envía `segmento_id` o
+`filtros` al backend. Validación de formato de email rechaza artefactos como `'0'`.
 
 **Verificación:** `npm run types:check` y `npm run build` sin errores. `php artisan test` en verde salvo el `ExampleTest` pre-existente (no relacionado). Extensión de Chrome no disponible en este entorno para probar la UI en navegador — se verificaron todos los endpoints nuevos/tocados (`clientes/buscar`, `campanas/{id}/preview`, `email-preview`, `destinatarios/preview`, `destinatarios/build`, `send-test`, `PUT campanas/{id}`) con curl autenticado contra la app corriendo en Docker, usando una campaña y destinatario de prueba creados y eliminados al terminar.
 

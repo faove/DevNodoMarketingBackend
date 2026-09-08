@@ -15,7 +15,7 @@ class EmailTemplateRenderer
      */
     public function renderSnapshot(Campana $campana, Cliente $cliente, ?ClienteContacto $contacto = null): array
     {
-        $valores = $this->valores($cliente, $contacto);
+        $valores = $this->valores($campana, $cliente, $contacto);
 
         return [
             'asunto' => $this->render((string) $campana->asunto, $valores),
@@ -50,8 +50,12 @@ class EmailTemplateRenderer
     /**
      * @return array<string, array<string, string>>
      */
-    private function valores(Cliente $cliente, ?ClienteContacto $contacto): array
+    public function valores(Campana $campana, Cliente $cliente, ?ClienteContacto $contacto = null): array
     {
+        if ($campana->relationLoaded('producto') === false && $campana->producto_id) {
+            $campana->load('producto:id,nombre,codigo');
+        }
+
         return [
             'cliente' => [
                 'nombre_completo' => $this->nombreCompleto($cliente),
@@ -61,6 +65,18 @@ class EmailTemplateRenderer
                 'email' => (string) ($contacto->valor ?? $cliente->email_principal ?? ''),
                 'ciudad' => (string) ($cliente->ciudad ?? ''),
                 'provincia' => (string) ($cliente->provincia ?? ''),
+                'sector' => (string) ($cliente->sector ?? ''),
+                'rubro' => (string) ($cliente->rubro ?? ''),
+            ],
+            'contacto' => [
+                'valor' => (string) ($contacto->valor ?? ''),
+                'etiqueta' => (string) ($contacto->etiqueta ?? ''),
+            ],
+            'campana' => [
+                'nombre' => (string) ($campana->nombre ?? ''),
+            ],
+            'producto' => [
+                'nombre' => (string) ($campana->producto?->nombre ?? ''),
             ],
             'empresa' => [
                 'nombre' => (string) config('empresa.nombre'),
