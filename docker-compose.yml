@@ -6,7 +6,11 @@ networks:
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      extra_hosts:
+        - "github.com:140.82.114.4"
+        - "api.github.com:140.82.114.4"
     container_name: devnodo-marketing-backend
     restart: unless-stopped
     env_file: .env
@@ -15,6 +19,9 @@ services:
     networks:
       - mailcowdockerized_mailcow-network
       - devnodo_net
+    extra_hosts:
+      - "github.com:140.82.114.4"
+      - "api.github.com:140.82.114.4"
     environment:
       DB_HOST: postgres
     depends_on:
@@ -36,7 +43,11 @@ services:
       - "traefik.http.services.devnodo-marketing.loadbalancer.server.port=80"
 
   worker:
-    build: .
+    build:
+      context: .
+      extra_hosts:
+        - "github.com:140.82.114.4"
+        - "api.github.com:140.82.114.4"
     container_name: devnodo-marketing-worker
     restart: unless-stopped
     env_file: .env
@@ -46,6 +57,9 @@ services:
     networks:
       - mailcowdockerized_mailcow-network
       - devnodo_net
+    extra_hosts:
+      - "github.com:140.82.114.4"
+      - "api.github.com:140.82.114.4"
     environment:
       DB_HOST: postgres
     depends_on:
