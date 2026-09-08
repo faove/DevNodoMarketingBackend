@@ -32,7 +32,11 @@ WORKDIR /var/www/html
 COPY . .
 
 RUN set -eux; \
-    composer install --no-dev --optimize-autoloader --no-interaction; \
+    if [ -f vendor/autoload.php ]; then \
+      echo "Using prebuilt vendor/"; \
+    else \
+      composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist; \
+    fi; \
     chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 COPY docker/nginx.conf /etc/nginx/nginx.conf
