@@ -23,8 +23,8 @@ services:
       - "github.com:140.82.114.4"
       - "codeload.github.com:140.82.114.4"
     environment:
-      DB_HOST: postgres
-      # Avoid Mailcow network alias "redis" (sessions / queues would hit redis-mailcow)
+      # Unique container DNS — shared nets also have other services named postgres/redis
+      DB_HOST: devnodo-marketing-postgres
       REDIS_HOST: devnodo-marketing-redis
     depends_on:
       postgres:
@@ -63,7 +63,7 @@ services:
       - "github.com:140.82.114.4"
       - "codeload.github.com:140.82.114.4"
     environment:
-      DB_HOST: postgres
+      DB_HOST: devnodo-marketing-postgres
       REDIS_HOST: devnodo-marketing-redis
     depends_on:
       postgres:
