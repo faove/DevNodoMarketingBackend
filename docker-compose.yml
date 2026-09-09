@@ -16,6 +16,8 @@ services:
     env_file: .env
     volumes:
       - ./storage:/var/www/html/storage
+      # Host Vite build (image rebuilds often omit public/build)
+      - ./public/build:/var/www/html/public/build:ro
     networks:
       - mailcowdockerized_mailcow-network
       - devnodo_net
