@@ -24,6 +24,8 @@ services:
       - "codeload.github.com:140.82.114.4"
     environment:
       DB_HOST: postgres
+      # Avoid Mailcow network alias "redis" (sessions / queues would hit redis-mailcow)
+      REDIS_HOST: devnodo-marketing-redis
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,6 +64,7 @@ services:
       - "codeload.github.com:140.82.114.4"
     environment:
       DB_HOST: postgres
+      REDIS_HOST: devnodo-marketing-redis
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,7 +82,7 @@ services:
     volumes:
       - marketing_postgres_data:/var/lib/postgresql/data
     networks:
-      - mailcowdockerized_mailcow-network
+      # Keep off mailcow-network: hostname "postgres"/"redis" collide with Mailcow DNS
       - devnodo_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -94,7 +97,7 @@ services:
     volumes:
       - marketing_redis_data:/data
     networks:
-      - mailcowdockerized_mailcow-network
+      # Keep off mailcow-network: "redis" stole Mailcow PHP sessions (admin login loop)
       - devnodo_net
 
 volumes:
