@@ -16,6 +16,7 @@ class Campana extends Model
         'canal',
         'objetivo',
         'producto_id',
+        'plantilla_id',
         'estado',
         'asunto',
         'mensaje_preview',
@@ -37,6 +38,11 @@ class Campana extends Model
     public function producto(): BelongsTo
     {
         return $this->belongsTo(Producto::class, 'producto_id');
+    }
+
+    public function plantilla(): BelongsTo
+    {
+        return $this->belongsTo(EmailPlantilla::class, 'plantilla_id');
     }
 
     public function destinatarios(): HasMany

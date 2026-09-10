@@ -58,6 +58,7 @@ type Campaign = {
     canal: string;
     objetivo: string | null;
     producto_id: number | null;
+    plantilla_id: number | null;
     estado: string;
     asunto: string | null;
     plantilla_html: string | null;
@@ -65,6 +66,14 @@ type Campaign = {
     destinatarios_count: number;
     programada_at: string | null;
     producto?: { id: number; nombre: string; codigo: string } | null;
+};
+
+type LibraryPlantilla = {
+    id: number;
+    codigo: string;
+    nombre: string;
+    asunto_default: string | null;
+    html: string;
 };
 
 type Paginated<T> = {
@@ -86,11 +95,13 @@ export default function CampaignShow({
     campana,
     destinatarios,
     estadoCounts,
+    plantillas = [],
     empresa,
 }: {
     campana: Campaign;
     destinatarios: Paginated<Recipient>;
     estadoCounts: Record<string, number>;
+    plantillas?: LibraryPlantilla[];
     empresa: { nombre: string; email: string };
 }) {
     const updateCampaign = (event: FormEvent<HTMLFormElement>) => {
@@ -107,7 +118,9 @@ export default function CampaignShow({
                     <StatusBadge status={campana.estado} />
                 </div>
 
-                {campana.canal === 'email' ? <CampaignEmailEditor campana={campana} empresa={empresa} /> : null}
+                {campana.canal === 'email' ? (
+                    <CampaignEmailEditor campana={campana} empresa={empresa} plantillas={plantillas} />
+                ) : null}
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <Card><CardHeader className="pb-2"><CardDescription>Destinatarios</CardDescription></CardHeader><CardContent className="text-3xl font-extrabold">{campana.destinatarios_count.toLocaleString('es-AR')}</CardContent></Card>

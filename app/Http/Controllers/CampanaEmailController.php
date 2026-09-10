@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessCampaignSendBatch;
 use App\Models\Campana;
+use App\Models\CampanaDestinatario;
 use App\Models\Cliente;
 use App\Models\ClienteContacto;
 use App\Services\CampaignRecipientResolver;
+use App\Services\CampaignSendLimiter;
 use App\Services\EmailTemplateRenderer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -114,6 +117,78 @@ class CampanaEmailController extends Controller
         });
 
         return response()->json(['enviado' => true, 'to' => $data['to']]);
+    }
+
+    public function send(Campana $campana, CampaignSendLimiter $limiter): JsonResponse
+    {
+        if (! in_array($campana->estado, ['borrador', 'programada', 'pausada', 'activa'], true)) {
+            throw ValidationException::withMessages([
+                'campana' => 'La campaña no puede enviarse en estado '.$campana->estado.'.',
+            ]);
+        }
+
+        if (blank($campana->asunto) || blank($campana->plantilla_html)) {
+            throw ValidationException::withMessages([
+                'campana' => 'La campaña necesita asunto y plantilla HTML antes de enviar.',
+            ]);
+        }
+
+        $pendientes = CampanaDestinatario::query()
+            ->where('campana_id', $campana->id)
+            ->where('estado', 'pendiente')
+            ->where('canal', 'email')
+            ->count();
+
+        if ($pendientes === 0) {
+            throw ValidationException::withMessages([
+                'campana' => 'No hay destinatarios pendientes. Confirmá la audiencia primero.',
+            ]);
+        }
+
+        $remaining = $limiter->remainingToday();
+        if ($remaining <= 0) {
+            throw ValidationException::withMessages([
+                'campana' => 'Se alcanzó el tope diario de '.$limiter->dailyLimit().' envíos. Reintentá mañana.',
+            ]);
+        }
+
+        $campana->update([
+            'estado' => 'activa',
+            'iniciada_at' => $campana->iniciada_at ?? now(),
+            'finalizada_at' => null,
+        ]);
+
+        ProcessCampaignSendBatch::dispatch($campana->id);
+
+        return response()->json([
+            'queued' => true,
+            'pendientes' => $pendientes,
+            'daily_limit' => $limiter->dailyLimit(),
+            'remaining_today' => $remaining,
+            'will_send_today' => min($pendientes, $remaining),
+        ]);
+    }
+
+    public function sendStatus(Campana $campana, CampaignSendLimiter $limiter): JsonResponse
+    {
+        $counts = CampanaDestinatario::query()
+            ->where('campana_id', $campana->id)
+            ->selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
+        return response()->json([
+            'campana' => [
+                'id' => $campana->id,
+                'estado' => $campana->estado,
+                'iniciada_at' => $campana->iniciada_at,
+                'finalizada_at' => $campana->finalizada_at,
+            ],
+            'estado_counts' => $counts,
+            'daily_limit' => $limiter->dailyLimit(),
+            'sent_today' => $limiter->sentToday(),
+            'remaining_today' => $limiter->remainingToday(),
+        ]);
     }
 
     /**

@@ -9,6 +9,7 @@ import {
     Activity,
     Database,
     Settings,
+    FileCode2,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -35,6 +36,7 @@ const crmNavItems: NavItem[] = [
 
 const outreachNavItems: NavItem[] = [
     { title: 'Campañas', href: '/campanas', icon: Megaphone },
+    { title: 'Plantillas', href: '/plantillas', icon: FileCode2 },
     { title: 'Segmentos', href: '/segmentos', icon: Layers },
     { title: 'Tags', href: '/tags', icon: Tags },
 ];

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campana;
+use App\Models\EmailPlantilla;
 use App\Models\Producto;
 use App\Models\Segmento;
+use App\Services\CampaignSendLimiter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -70,6 +72,10 @@ class CampanaController extends Controller
             'campana' => $campana,
             'destinatarios' => $destinatarios,
             'estadoCounts' => $estadoCounts,
+            'plantillas' => EmailPlantilla::query()
+                ->activo()
+                ->orderBy('nombre')
+                ->get(['id', 'codigo', 'nombre', 'asunto_default', 'html']),
             'empresa' => [
                 'nombre' => config('empresa.nombre'),
                 'email' => config('empresa.email'),
@@ -77,14 +83,22 @@ class CampanaController extends Controller
         ]);
     }
 
-    public function preview(Campana $campana): Response
+    public function preview(Campana $campana, CampaignSendLimiter $limiter): Response
     {
+        $pendientes = $campana->destinatarios()->where('estado', 'pendiente')->count();
+
         return Inertia::render('campanas/preview', [
-            'campana' => $campana->only(['id', 'codigo', 'nombre', 'asunto', 'estado', 'canal']),
+            'campana' => $campana->only(['id', 'codigo', 'nombre', 'asunto', 'estado', 'canal', 'plantilla_html']),
             'segmentos' => Segmento::query()
                 ->activo()
                 ->orderBy('nombre')
                 ->get(['id', 'codigo', 'nombre', 'descripcion']),
+            'sendMeta' => [
+                'pendientes' => $pendientes,
+                'daily_limit' => $limiter->dailyLimit(),
+                'sent_today' => $limiter->sentToday(),
+                'remaining_today' => $limiter->remainingToday(),
+            ],
         ]);
     }
 
@@ -123,6 +137,7 @@ class CampanaController extends Controller
             'canal' => ['required', Rule::in(['email', 'sms', 'whatsapp', 'llamada', 'ads', 'mixto'])],
             'objetivo' => ['nullable', 'string', 'max:200'],
             'producto_id' => ['nullable', 'integer', 'exists:productos,id'],
+            'plantilla_id' => ['nullable', 'integer', 'exists:email_plantillas,id'],
             'estado' => ['required', Rule::in(['borrador', 'programada', 'activa', 'pausada', 'finalizada'])],
             'asunto' => ['nullable', 'string', 'max:255'],
             'mensaje_preview' => ['nullable', 'string'],

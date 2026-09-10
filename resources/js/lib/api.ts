@@ -32,7 +32,16 @@ async function request<T>(url: string, init: ApiInit = {}): Promise<T> {
         let message = `Error ${response.status}`;
         try {
             const data = await response.json();
-            message = data.message || message;
+            if (data.errors && typeof data.errors === 'object') {
+                const first = Object.values(data.errors as Record<string, string[]>)[0];
+                if (Array.isArray(first) && first[0]) {
+                    message = first[0];
+                } else if (typeof data.message === 'string') {
+                    message = data.message;
+                }
+            } else if (typeof data.message === 'string') {
+                message = data.message;
+            }
         } catch {
             // respuesta sin cuerpo JSON
         }

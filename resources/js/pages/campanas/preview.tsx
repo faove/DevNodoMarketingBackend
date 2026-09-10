@@ -45,6 +45,7 @@ type Campaign = {
     asunto: string | null;
     estado: string;
     canal: string;
+    plantilla_html: string | null;
 };
 
 type Segmento = {
@@ -74,6 +75,13 @@ type PaginatedJson<T> = {
 };
 
 type BuildResumen = { total: number; persistidos: number; omitidos: number };
+
+type SendMeta = {
+    pendientes: number;
+    daily_limit: number;
+    sent_today: number;
+    remaining_today: number;
+};
 
 type AudienceFilters = {
     segmento_id: string;
@@ -108,9 +116,11 @@ function buildAudienceBody(filters: AudienceFilters): Record<string, unknown> {
 export default function CampaignPreview({
     campana,
     segmentos,
+    sendMeta,
 }: {
     campana: Campaign;
     segmentos: Segmento[];
+    sendMeta: SendMeta;
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
 
@@ -130,6 +140,8 @@ export default function CampaignPreview({
 
     const [building, setBuilding] = useState(false);
     const [buildResumen, setBuildResumen] = useState<BuildResumen | null>(null);
+    const [sending, setSending] = useState(false);
+    const [liveMeta, setLiveMeta] = useState(sendMeta);
 
     const [rowPreview, setRowPreview] = useState<{ subject: string; html: string; to: string | null } | 'loading' | null>(null);
 
@@ -187,8 +199,10 @@ export default function CampaignPreview({
         api.post<BuildResumen>(`/campanas/${campana.id}/destinatarios/build`, buildAudienceBody(appliedFilters))
             .then((resumen) => {
                 setBuildResumen(resumen);
+                setLiveMeta((prev) => ({ ...prev, pendientes: resumen.persistidos }));
                 toast.success(`Audiencia confirmada: ${resumen.persistidos} destinatarios persistidos.`);
                 fetchPage(page, appliedFilters);
+                refreshSendStatus();
             })
             .catch(() => toast.error('No se pudo confirmar la audiencia.'))
             .finally(() => setBuilding(false));
@@ -217,7 +231,71 @@ export default function CampaignPreview({
             .finally(() => setSendingTest(false));
     };
 
+    const refreshSendStatus = () => {
+        api.get<{
+            estado_counts: Record<string, number>;
+            daily_limit: number;
+            sent_today: number;
+            remaining_today: number;
+            campana: { estado: string };
+        }>(`/campanas/${campana.id}/send-status`)
+            .then((status) => {
+                setLiveMeta({
+                    pendientes: Number(status.estado_counts.pendiente ?? 0),
+                    daily_limit: status.daily_limit,
+                    sent_today: status.sent_today,
+                    remaining_today: status.remaining_today,
+                });
+            })
+            .catch(() => undefined);
+    };
+
+    const handleSendCampaign = () => {
+        if (!campana.asunto || !campana.plantilla_html) {
+            toast.error('La campaña necesita asunto y plantilla HTML.');
+            return;
+        }
+        if (liveMeta.pendientes <= 0) {
+            toast.error('Confirmá la audiencia primero (sin destinatarios pendientes).');
+            return;
+        }
+        if (liveMeta.remaining_today <= 0) {
+            toast.error(`Tope diario alcanzado (${liveMeta.daily_limit}/día).`);
+            return;
+        }
+
+        const willSend = Math.min(liveMeta.pendientes, liveMeta.remaining_today);
+        if (!window.confirm(`¿Encolar envío de hasta ${willSend} emails hoy (tope ${liveMeta.daily_limit}/día)?`)) {
+            return;
+        }
+
+        setSending(true);
+        api.post<{ will_send_today: number; remaining_today: number; pendientes: number }>(`/campanas/${campana.id}/send`)
+            .then((response) => {
+                toast.success(
+                    `Envío encolado: ${response.will_send_today} hoy · ${response.pendientes} pendientes totales · quedan ${response.remaining_today} del cupo.`,
+                );
+                refreshSendStatus();
+            })
+            .catch((error: unknown) => {
+                const message =
+                    typeof error === 'object' &&
+                    error !== null &&
+                    'message' in error &&
+                    typeof (error as { message: unknown }).message === 'string'
+                        ? (error as { message: string }).message
+                        : 'No se pudo encolar el envío.';
+                toast.error(message);
+            })
+            .finally(() => setSending(false));
+    };
+
     const usingSegment = appliedFilters.segmento_id !== 'all';
+    const canSend =
+        Boolean(campana.asunto && campana.plantilla_html) &&
+        liveMeta.pendientes > 0 &&
+        liveMeta.remaining_today > 0 &&
+        !sending;
 
     return (
         <>
@@ -457,11 +535,31 @@ export default function CampaignPreview({
                             </p>
                         ) : null}
 
-                        <div className="rounded-lg border border-dashed p-4">
-                            <Button disabled>Enviar campaña</Button>
+                        <div className="rounded-lg border p-4">
+                            <div className="mb-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
+                                <span>
+                                    Pendientes: <strong className="text-foreground">{liveMeta.pendientes}</strong>
+                                </span>
+                                <span>
+                                    Enviados hoy: <strong className="text-foreground">{liveMeta.sent_today}</strong> /{' '}
+                                    {liveMeta.daily_limit}
+                                </span>
+                                <span>
+                                    Cupo restante: <strong className="text-foreground">{liveMeta.remaining_today}</strong>
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button onClick={handleSendCampaign} disabled={!canSend}>
+                                    <Send />
+                                    {sending ? 'Encolando...' : 'Enviar campaña'}
+                                </Button>
+                                <Button variant="outline" onClick={refreshSendStatus}>
+                                    Actualizar estado
+                                </Button>
+                            </div>
                             <p className="mt-2 text-sm text-muted-foreground">
-                                Deshabilitado: falta configurar SMTP y definir el criterio legal de opt-in masivo antes de habilitar el envío
-                                real.
+                                Tope global {liveMeta.daily_limit}/día. Si quedan pendientes, el scheduler continúa mañana
+                                automáticamente.
                             </p>
                         </div>
                     </CardContent>

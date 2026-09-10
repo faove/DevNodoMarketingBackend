@@ -20,12 +20,21 @@ type Campaign = {
     canal: string;
     objetivo: string | null;
     producto_id: number | null;
+    plantilla_id?: number | null;
     producto?: { id: number; nombre: string; codigo: string } | null;
     estado: string;
     asunto: string | null;
     plantilla_html: string | null;
     mensaje_preview: string | null;
     programada_at: string | null;
+};
+
+type LibraryPlantilla = {
+    id: number;
+    codigo: string;
+    nombre: string;
+    asunto_default: string | null;
+    html: string;
 };
 
 const CLIENTE_EJEMPLO = {
@@ -40,9 +49,18 @@ const CLIENTE_EJEMPLO = {
     email_principal: 'cliente@ejemplo.com',
 };
 
-export function CampaignEmailEditor({ campana, empresa }: { campana: Campaign; empresa: { nombre: string; email: string } }) {
+export function CampaignEmailEditor({
+    campana,
+    empresa,
+    plantillas = [],
+}: {
+    campana: Campaign;
+    empresa: { nombre: string; email: string };
+    plantillas?: LibraryPlantilla[];
+}) {
     const [asunto, setAsunto] = useState(campana.asunto ?? '');
     const [plantillaHtml, setPlantillaHtml] = useState(campana.plantilla_html ?? '');
+    const [plantillaId, setPlantillaId] = useState<string>(campana.plantilla_id ? String(campana.plantilla_id) : 'none');
     const [activeField, setActiveField] = useState<'asunto' | 'plantilla'>('plantilla');
     const [testCliente, setTestCliente] = useState<ClienteBusqueda | null>(null);
     const [testContactoId, setTestContactoId] = useState<string>('principal');
@@ -104,6 +122,7 @@ export function CampaignEmailEditor({ campana, empresa }: { campana: Campaign; e
                 estado: campana.estado,
                 objetivo: campana.objetivo,
                 producto_id: campana.producto_id,
+                plantilla_id: plantillaId === 'none' ? null : Number(plantillaId),
                 mensaje_preview: campana.mensaje_preview,
                 programada_at: campana.programada_at,
                 asunto,
@@ -114,6 +133,18 @@ export function CampaignEmailEditor({ campana, empresa }: { campana: Campaign; e
                 onFinish: () => setSaving(false),
             },
         );
+    };
+
+    const applyLibraryPlantilla = (id: string) => {
+        setPlantillaId(id);
+        if (id === 'none') return;
+        const selected = plantillas.find((item) => String(item.id) === id);
+        if (!selected) return;
+        setPlantillaHtml(selected.html);
+        if (selected.asunto_default) {
+            setAsunto(selected.asunto_default);
+        }
+        toast.success(`Plantilla aplicada: ${selected.nombre}`);
     };
 
     return (
@@ -132,6 +163,30 @@ export function CampaignEmailEditor({ campana, empresa }: { campana: Campaign; e
             </CardHeader>
             <CardContent className="grid gap-6 xl:grid-cols-2">
                 <div className="flex flex-col gap-4">
+                    {plantillas.length > 0 ? (
+                        <div className="grid gap-2">
+                            <Label>Plantilla de biblioteca</Label>
+                            <Select value={plantillaId} onValueChange={applyLibraryPlantilla}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Elegir plantilla" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Sin plantilla (HTML libre)</SelectItem>
+                                    {plantillas.map((item) => (
+                                        <SelectItem key={item.id} value={String(item.id)}>
+                                            {item.nombre}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                Al elegir una plantilla se copia asunto/HTML a esta campaña. Podés editarlos después.{' '}
+                                <Link href="/plantillas" className="text-primary hover:underline">
+                                    Administrar plantillas
+                                </Link>
+                            </p>
+                        </div>
+                    ) : null}
                     <div className="grid gap-2">
                         <Label htmlFor="email-asunto">Asunto</Label>
                         <Input

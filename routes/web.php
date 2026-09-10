@@ -4,6 +4,7 @@ use App\Http\Controllers\CampanaController;
 use App\Http\Controllers\CampanaEmailController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardPageController;
+use App\Http\Controllers\EmailPlantillaController;
 use App\Http\Controllers\ImportBatchController;
 use App\Http\Controllers\InteraccionController;
 use App\Http\Controllers\ProductoController;
@@ -34,6 +35,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/campanas/{campana}/email-preview', [CampanaEmailController::class, 'emailPreview'])->name('campanas.email-preview');
     Route::post('/campanas/{campana}/destinatarios/build', [CampanaEmailController::class, 'buildDestinatarios'])->name('campanas.destinatarios.build');
     Route::post('/campanas/{campana}/send-test', [CampanaEmailController::class, 'sendTest'])->name('campanas.send-test');
+    Route::post('/campanas/{campana}/send', [CampanaEmailController::class, 'send'])->name('campanas.send');
+    Route::get('/campanas/{campana}/send-status', [CampanaEmailController::class, 'sendStatus'])->name('campanas.send-status');
+
+    Route::get('/plantillas', [EmailPlantillaController::class, 'index'])->name('plantillas.index');
+    Route::get('/plantillas/nueva', [EmailPlantillaController::class, 'create'])->name('plantillas.create');
+    Route::post('/plantillas', [EmailPlantillaController::class, 'store'])->name('plantillas.store');
+    Route::get('/plantillas/{plantilla}/editar', [EmailPlantillaController::class, 'edit'])->name('plantillas.edit');
+    Route::put('/plantillas/{plantilla}', [EmailPlantillaController::class, 'update'])->name('plantillas.update');
 
     Route::get('/interacciones', [InteraccionController::class, 'index'])->name('interacciones.index');
 
