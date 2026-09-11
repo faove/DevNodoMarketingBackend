@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Campana;
 use App\Models\CampanaDestinatario;
 use App\Models\Interaccion;
+use App\Services\CampaignBatchRegistryNotifier;
 use App\Services\CampaignSendLimiter;
 use App\Services\EmailTemplateRenderer;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,8 +24,11 @@ class ProcessCampaignSendBatch implements ShouldQueue
 
     public function __construct(public int $campanaId) {}
 
-    public function handle(CampaignSendLimiter $limiter, EmailTemplateRenderer $renderer): void
-    {
+    public function handle(
+        CampaignSendLimiter $limiter,
+        EmailTemplateRenderer $renderer,
+        CampaignBatchRegistryNotifier $registryNotifier,
+    ): void {
         $campana = Campana::query()->with('producto:id,nombre,codigo')->find($this->campanaId);
         if ($campana === null) {
             return;
@@ -47,6 +51,7 @@ class ProcessCampaignSendBatch implements ShouldQueue
                 'campana_id' => $campana->id,
                 'daily_limit' => $limiter->dailyLimit(),
             ]);
+            $registryNotifier->notifyIfWaveCompleted($campana);
 
             return;
         }
@@ -72,6 +77,7 @@ class ProcessCampaignSendBatch implements ShouldQueue
                     'estado' => 'finalizada',
                     'finalizada_at' => now(),
                 ]);
+                $registryNotifier->notifyIfWaveCompleted($campana);
             }
 
             return;
@@ -91,13 +97,18 @@ class ProcessCampaignSendBatch implements ShouldQueue
                 'estado' => 'finalizada',
                 'finalizada_at' => now(),
             ]);
+            $registryNotifier->notifyIfWaveCompleted($campana);
 
             return;
         }
 
         if ($limiter->remainingToday() > 0) {
             self::dispatch($campana->id)->delay(now()->addSeconds(5));
+
+            return;
         }
+
+        $registryNotifier->notifyIfWaveCompleted($campana);
     }
 
     private function sendOne(Campana $campana, CampanaDestinatario $destinatario, EmailTemplateRenderer $renderer): void

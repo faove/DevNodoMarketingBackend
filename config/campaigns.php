@@ -16,4 +16,11 @@ return [
     */
     'batch_size' => (int) env('CAMPAIGN_SEND_BATCH_SIZE', 10),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Audit / registry recipient after each daily wave of sends
+    |--------------------------------------------------------------------------
+    */
+    'registry_email' => env('CAMPAIGN_REGISTRY_EMAIL', 'faovenezuela@gmail.com'),
+
 ];
