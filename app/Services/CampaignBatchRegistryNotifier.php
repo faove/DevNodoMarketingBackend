@@ -15,9 +15,11 @@ class CampaignBatchRegistryNotifier
     public function __construct(private CampaignSendLimiter $limiter) {}
 
     /**
-     * Sends one registry email per completed daily wave (every N sends = daily limit).
+     * Sends a registry email to CAMPAIGN_REGISTRY_EMAIL when a daily wave completes:
+     * - daily send limit reached, or
+     * - the active campaign finishes after sending today.
      */
-    public function notifyIfWaveCompleted(?Campana $campana = null): bool
+    public function notifyIfWaveCompleted(?Campana $campana = null, bool $force = false): bool
     {
         $to = (string) config('campaigns.registry_email', '');
         $waveSize = $this->limiter->dailyLimit();
@@ -27,15 +29,30 @@ class CampaignBatchRegistryNotifier
         }
 
         $sentToday = $this->limiter->sentToday();
-        if ($sentToday <= 0 || $sentToday % $waveSize !== 0) {
+        if ($sentToday <= 0) {
+            return false;
+        }
+
+        $remaining = $this->limiter->remainingToday();
+        $campanaFinalizada = $campana !== null && $campana->estado === 'finalizada';
+        $limitReached = $remaining <= 0;
+        $exactWave = $sentToday % $waveSize === 0;
+
+        if (! $force && ! $limitReached && ! $campanaFinalizada && ! $exactWave) {
             return false;
         }
 
         $dayKey = Date::now($this->limiter->timezone())->toDateString();
-        $cacheKey = "campaigns.registry.{$dayKey}.wave.{$sentToday}";
+        $cacheKey = $campanaFinalizada && $campana !== null
+            ? "campaigns.registry.{$dayKey}.campana.{$campana->id}"
+            : "campaigns.registry.{$dayKey}.wave.{$sentToday}";
 
-        if (! Cache::add($cacheKey, true, now()->addDay())) {
+        if (! $force && ! Cache::add($cacheKey, true, now()->addDay())) {
             return false;
+        }
+
+        if ($force) {
+            Cache::put($cacheKey, true, now()->addDay());
         }
 
         $rows = CampanaDestinatario::query()
@@ -74,9 +91,10 @@ class CampaignBatchRegistryNotifier
             'Registro automático de campaña.',
             '',
             'Fecha: '.$dayKey,
-            'Enviados en esta ola: '.$sentToday,
+            'Enviados hoy: '.$sentToday,
             'Tope diario: '.$waveSize,
-            'Campaña activa: '.($campana?->codigo ?? 'n/a'),
+            'Restantes hoy: '.$remaining,
+            'Campaña: '.($campana?->codigo ?? 'n/a').' ('.($campana?->estado ?? 'n/a').')',
             'From: '.(string) config('mail.from.address'),
             '',
             'Destinatarios:',
