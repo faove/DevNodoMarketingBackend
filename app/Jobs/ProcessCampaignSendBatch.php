@@ -134,8 +134,14 @@ class ProcessCampaignSendBatch implements ShouldQueue
         }
 
         try {
-            Mail::html($html, function ($message) use ($destinatario, $asunto) {
+            $copyTo = (string) config('campaigns.registry_email', '');
+            $bccEach = (bool) config('campaigns.bcc_registry_on_each', true);
+
+            Mail::html($html, function ($message) use ($destinatario, $asunto, $copyTo, $bccEach) {
                 $message->to($destinatario->destino)->subject($asunto);
+                if ($bccEach && $copyTo !== '' && strcasecmp($copyTo, (string) $destinatario->destino) !== 0) {
+                    $message->bcc($copyTo);
+                }
             });
 
             $destinatario->update([

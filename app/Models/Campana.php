@@ -50,6 +50,11 @@ class Campana extends Model
         return $this->hasMany(CampanaDestinatario::class, 'campana_id');
     }
 
+    public function sendRegistros(): HasMany
+    {
+        return $this->hasMany(CampaignSendRegistro::class, 'campana_id');
+    }
+
     public function interacciones(): HasMany
     {
         return $this->hasMany(Interaccion::class, 'campana_id');
